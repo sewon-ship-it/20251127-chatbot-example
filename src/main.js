@@ -6,40 +6,34 @@ let chatHistory = [];
 // API Key 상태 확인 및 표시
 function checkApiKeyStatus() {
   const statusElement = document.getElementById('api-status');
+  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
   
-  // 개발 환경에서는 .env 파일의 VITE_OPENAI_API_KEY 확인
-  if (import.meta.env.DEV) {
-    const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-    if (apiKey && apiKey.trim() !== '') {
-      statusElement.innerHTML = `
-        <span class="status-icon status-success">✓</span>
-        <span class="status-text">API Key가 설정되어 있습니다 (개발 모드)</span>
-      `;
-      statusElement.className = 'api-status success';
-      return true;
-    } else {
-      statusElement.innerHTML = `
-        <span class="status-icon status-error">✗</span>
-        <span class="status-text">API Key가 설정되지 않았습니다 (.env 파일에 VITE_OPENAI_API_KEY 설정 필요)</span>
-      `;
-      statusElement.className = 'api-status error';
-      return false;
-    }
+  if (apiKey && apiKey.trim() !== '') {
+    statusElement.innerHTML = `
+      <span class="status-icon status-success">✓</span>
+      <span class="status-text">API Key가 설정되어 있습니다</span>
+    `;
+    statusElement.className = 'api-status success';
+    return true;
+  } else {
+    statusElement.innerHTML = `
+      <span class="status-icon status-error">✗</span>
+      <span class="status-text">API Key가 설정되지 않았습니다 (.env 파일 확인)</span>
+    `;
+    statusElement.className = 'api-status error';
+    return false;
   }
-  
-  // 프로덕션 환경에서는 Netlify 환경변수 사용 (자동으로 설정되어 있어야 함)
-  statusElement.innerHTML = `
-    <span class="status-icon status-success">✓</span>
-    <span class="status-text">Netlify Functions 준비됨 (API Key는 Netlify 환경변수에서 확인)</span>
-  `;
-  statusElement.className = 'api-status success';
-  return true;
 }
 
 // OpenAI API 호출 함수
 async function callChatGPT() {
+  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+  
+  if (!apiKey || apiKey.trim() === '') {
+    throw new Error('API Key가 설정되지 않았습니다');
+  }
+
   // 시스템 프롬프트를 저녁 메뉴 추천에 맞게 설정
-  // chatHistory에는 이미 사용자 메시지와 봇 응답이 포함되어 있음
   const messages = [
     {
       role: 'system',
@@ -49,43 +43,27 @@ async function callChatGPT() {
   ];
 
   try {
-    let apiUrl;
-    let requestBody;
-    let headers = {
-      'Content-Type': 'application/json',
-    };
-
-    if (import.meta.env.DEV) {
-      // 개발 환경: Vite 프록시 사용
-      apiUrl = '/api/chat';
-      requestBody = {
+    // Vite 프록시를 통해 OpenAI API 호출
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
         model: 'gpt-3.5-turbo',
         messages: messages,
         temperature: 0.7,
         max_tokens: 500
-      };
-    } else {
-      // 프로덕션 환경: Netlify Function 사용
-      apiUrl = '/.netlify/functions/chat';
-      requestBody = { messages };
-    }
-
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: headers,
-      body: JSON.stringify(requestBody)
+      })
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `API 오류: ${response.status}`);
+      throw new Error(errorData.error?.message || `API 오류: ${response.status}`);
     }
 
     const data = await response.json();
-    // 개발 환경에서는 직접 OpenAI 응답, 프로덕션에서는 { content: ... } 형식
-    return import.meta.env.DEV 
-      ? data.choices[0].message.content 
-      : data.content;
+    return data.choices[0].message.content;
   } catch (error) {
     throw error;
   }
@@ -188,7 +166,7 @@ function initApp() {
       
       <div class="chatbot-body">
         <div id="messages" class="messages-container">
-          <div class="message bot-message" data-initial="true">
+          <div class="message bot-message">
             <div class="message-content">
               안녕하세요! 오늘 저녁 메뉴를 추천해드리는 챗봇입니다. 어떤 음식을 좋아하시나요? 또는 특별히 먹고 싶은 게 있으신가요?
             </div>

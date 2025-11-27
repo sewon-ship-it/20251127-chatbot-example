@@ -32,7 +32,7 @@
   color-scheme: light;
   color: var(--text-dark);
   background: linear-gradient(135deg, var(--pastel-green-50) 0%, var(--pastel-cream) 100%);
-  
+
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -312,7 +312,7 @@ body {
 
   .chatbot-header h1 {
     font-size: 1.5rem;
-  }
+}
 
   .chatbot-header p {
     font-size: 0.9rem;
